@@ -20,7 +20,7 @@
   var cfg = loadCfg();
   function save() { try { localStorage.setItem(KEY, JSON.stringify(cfg)); } catch (e) {} }
 
-  var detCfg = { fmin: 100, fmax: 16000, prom: cfg.prom, floor: cfg.floor, tWatch: 0.35, tDanger: 0.6, hold: cfg.hold };
+  var detCfg = { fmin: 100, fmax: 16000, prom: cfg.prom, floor: cfg.floor, tWatch: 0.8, tDanger: 0.6, riseDb: 6, hold: cfg.hold };
   var det = Core.createDetector(detCfg);
 
   var S = {

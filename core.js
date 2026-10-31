@@ -59,6 +59,15 @@
     return (b - a) / (tb - ta);
   }
 
+  // 直近0.8秒の中で、いまのレベルが最小値よりどれだけ上がっているか(dB)
+  function growthOf(h) {
+    if (h.length < 6 || h[h.length - 1].t - h[0].t < 0.4) return 0;
+    var mn = Infinity, j;
+    for (j = 0; j < h.length - 3; j++) if (h[j].v < mn) mn = h[j].v;
+    var cur = (h[h.length - 1].v + h[h.length - 2].v + h[h.length - 3].v) / 3;
+    return cur - mn;
+  }
+
   // 声や楽器の倍音列に見えるか（等間隔のピーク列、または2倍・3倍・1/2・1/3の相手がいる）
   function isHarmonic(weak, k, binHz) {
     var w = weak[k], i = w.i;
@@ -136,7 +145,8 @@
           if (db <= 2 && db < bd) { bd = db; t = tr; }
         }
         if (!t) {
-          t = { id: nextId++, first: now, i: w.i, f: f, lvl: b, prom: w.prom, hist: [], fn: 0, last: now, slope: 0 };
+          t = { id: nextId++, first: now, i: w.i, f: f, lvl: b, prom: w.prom, hist: [], fn: 0, last: now,
+                slope: 0, rise: 0, top: b };
           tracks.push(t);
         } else {
           t.f = t.f * 0.7 + f * 0.3;
@@ -147,14 +157,17 @@
         t.hist.push({ t: now, v: b });
         while (t.hist.length && now - t.hist[0].t > 0.8) t.hist.shift();
         t.slope = slopeOf(t.hist);
+        t.rise = Math.max(t.rise, growthOf(t.hist));
+        if (t.lvl > t.top) t.top = t.lvl;
 
+        // 「ハウリング」は、レベルが育った細いピークだけ。一定のまま鳴り続ける音は「しそう」止まり
         var dur = now - t.first;
         var blocked = isHarmonic(weak, k, binHz) && t.slope < 6;
+        var grew = t.rise >= cfg.riseDb && t.lvl >= t.top - 8;
         var sev = 0;
         if (!blocked) {
           if (dur >= cfg.tWatch && t.prom >= cfg.prom) sev = 1;
-          if ((dur >= cfg.tDanger && t.prom >= cfg.prom + 6 && t.slope > -2) ||
-              (dur >= 0.4 && t.slope >= 8)) sev = 2;
+          if (grew && dur >= cfg.tDanger && t.prom >= cfg.prom) sev = 2;
         }
         t.sev = sev;
         if (sev === 0) continue;
